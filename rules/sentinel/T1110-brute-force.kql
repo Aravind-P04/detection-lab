@@ -1,0 +1,23 @@
+// MITRE T1110 - Brute Force Detection
+// Tactic:    Credential Access
+// Platform:  Microsoft Sentinel (Azure AD Sign-in Logs)
+// Threshold: 10+ failures in 5 minutes from same IP
+
+SigninLogs
+| where TimeGenerated > ago(5m)
+| where ResultType != "0"  // 0 = success
+| summarize
+    FailureCount = count(),
+    TargetAccounts = make_set(UserPrincipalName),
+    ErrorCodes = make_set(ResultType)
+    by IPAddress, bin(TimeGenerated, 5m)
+| where FailureCount >= 10
+| extend
+    Risk = "High",
+    Technique = "T1110 - Brute Force",
+    Recommendation = "Block IP, notify account owners, check for successful auth after failures"
+| project TimeGenerated, IPAddress, FailureCount, TargetAccounts, Risk, Recommendation
+
+// False positives: Automated service accounts, legacy auth protocols
+// Tuning:         Increase threshold for environments with many service accounts
+//                 Filter on ResultType 50126, 50053, 50055 for more precision
