@@ -1,0 +1,16 @@
+| tstats count min(_time) as firstTime max(_time) as lastTime
+    from datamodel=Authentication.Authentication
+    where Authentication.action=success
+    by Authentication.user Authentication.src_ip
+| rename Authentication.* as *
+| stats values(src_ip) as src_ips count by user
+| where mvcount(src_ips) > 1
+| eval risk="Possible account sharing or credential theft"
+| table user src_ips count risk firstTime lastTime
+| sort - count
+
+| MITRE:     T1078 - Valid Accounts
+| Tactic:    Initial Access, Persistence
+| Platform:  Splunk (CIM Authentication datamodel)
+| Threshold: Tune mvcount value based on environment
+| FP notes:  VPN split-tunneling, mobile + desktop same user
