@@ -1,8 +1,7 @@
 # Detection Engineering Lab
 
-Splunk and Microsoft Sentinel detection rules mapped to the MITRE ATT&CK framework.
-Built from real SOC experience — each rule includes detection logic, the attack
-technique it covers, and tuning notes to reduce false positives.
+Detection rules I use or have used in SOC work at Northern Trust. Splunk rules are SPL against the CIM Authentication datamodel. Sentinel rules are KQL against Azure AD SigninLogs. FP notes are from actual tuning. Not every rule is production-ready as-is — thresholds and field names 
+will need adjusting for your environment.
 
 ## Rules covered
 
@@ -21,4 +20,4 @@ technique it covers, and tuning notes to reduce false positives.
 - `false-positive-notes.md` — tuning guidance per rule
 
 ## Environment
-Tested against: Windows Event Logs, Azure AD Sign-in Logs, Palo Alto firewall logs
+Windows Event Logs · Azure AD Sign-in Logs · Palo Alto firewall logs
