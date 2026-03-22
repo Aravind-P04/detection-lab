@@ -1,0 +1,11 @@
+| index=wineventlog EventCode=7036
+| search ServiceName IN ("WinDefend","MpsSvc","wscsvc")
+| eval action=if(Message LIKE "%stopped%","Service Stopped","Service Started")
+| where action="Service Stopped"
+| eval risk="Security service disabled — possible defense evasion"
+| table _time host ServiceName action risk
+
+| MITRE:    T1562.001 - Impair Defenses: Disable or Modify Tools
+| Tactic:   Defense Evasion
+| Platform: Splunk (Windows Event Logs)
+| FP notes: Patch Tuesday — exclude during maintenance windows
