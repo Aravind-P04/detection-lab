@@ -1,0 +1,14 @@
+| index=wineventlog EventCode=4648
+| eval src_user=mvindex(Account_Name,0)
+| eval target_host=mvindex(Account_Name,1)
+| where src_user!=target_host
+| stats count by src_user target_host Logon_Type _time
+| where Logon_Type=3
+| eval risk="Explicit credential use — possible lateral movement"
+| table _time src_user target_host Logon_Type risk
+| sort - _time
+
+| MITRE:    T1021 - Remote Services / Lateral Movement
+| Tactic:   Lateral Movement
+| Platform: Splunk (Windows Security Event Logs)
+| FP notes: IT helpdesk remote access, scheduled tasks with explicit creds
