@@ -1,0 +1,21 @@
+| index=wineventlog EventCode=4104
+| search ScriptBlockText=*
+| eval suspicious=case(
+    match(ScriptBlockText, "(?i)IEX|Invoke-Expression"), "Encoded execution",
+    match(ScriptBlockText, "(?i)DownloadString|WebClient"), "Download cradle",
+    match(ScriptBlockText, "(?i)mimikatz|sekurlsa"), "Credential dumping tool",
+    match(ScriptBlockText, "(?i)-EncodedCommand|-enc "), "Encoded command",
+    match(ScriptBlockText, "(?i)Invoke-Mimikatz|Invoke-Empire"), "Known attack tool",
+    true(), null()
+  )
+| where isnotnull(suspicious)
+| table _time host UserID ScriptBlockText suspicious
+| sort - _time
+
+| MITRE:    T1059.001 - Command and Scripting Interpreter: PowerShell
+| Tactic:   Execution
+| Platform: Splunk (Windows PowerShell Event Logs)
+| Requires: PowerShell Script Block Logging enabled via Group Policy
+| FP notes: Admin automation scripts, software deployment tools (SCCM, Intune)
+|           Whitelist known script paths and signed scripts
+|           Alert on Office apps spawning PowerShell — high confidence
