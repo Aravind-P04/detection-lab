@@ -1,0 +1,58 @@
+// MITRE T1078 - Valid Accounts: Impossible Travel
+// Tactic:   Initial Access, Persistence, Defense Evasion
+// Platform: Microsoft Sentinel (Azure AD Sign-in Logs)
+// Detects:  Same user logging in from 2 different
+//           locations within a 1 hour window
+
+let timeWindow = 1h;
+let distanceThreshold = 500;
+
+SigninLogs
+| where TimeGenerated > ago(24h)
+| where ResultType == "0"
+| where UserPrincipalName != ""
+| project
+    TimeGenerated,
+    UserPrincipalName,
+    Location,
+    IPAddress,
+    AppDisplayName,
+    DeviceDetail,
+    ConditionalAccessStatus
+| summarize
+    LoginCount = count(),
+    Locations = make_set(Location),
+    IPAddresses = make_set(IPAddress),
+    Apps = make_set(AppDisplayName),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated)
+    by UserPrincipalName, bin(TimeGenerated, timeWindow)
+| where array_length(Locations) > 1
+| extend
+    TimeDelta = LastSeen - FirstSeen,
+    Risk = "HIGH",
+    Technique = "T1078 - Valid Accounts",
+    Tactic = "Initial Access / Persistence",
+    Recommendation = "Verify with user — confirm travel or check for account compromise"
+| project
+    TimeGenerated,
+    UserPrincipalName,
+    Locations,
+    IPAddresses,
+    Apps,
+    TimeDelta,
+    LoginCount,
+    Risk,
+    Technique,
+    Tactic,
+    Recommendation
+| order by TimeGenerated desc
+
+// False positives:
+// - VPN split tunneling showing multiple exit IPs
+// - Mobile hotspot users switching networks
+// - Shared accounts used by multiple people (flag for review)
+// Tuning:
+// - Whitelist known VPN egress IP ranges
+// - Increase distanceThreshold for frequent travelers
+// - Add exclusion for service accounts
