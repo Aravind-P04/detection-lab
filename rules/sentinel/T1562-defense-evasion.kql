@@ -1,0 +1,96 @@
+// MITRE T1562.001 - Impair Defenses: Disable or Modify Tools
+// Tactic:   Defense Evasion
+// Platform: Microsoft Sentinel (Security Events + Defender logs)
+// Detects:  Security services stopped, AV disabled,
+//           audit policy modified, firewall disabled
+
+// Part 1 — Security service stopped or disabled
+SecurityEvent
+| where TimeGenerated > ago(1h)
+| where EventID == 7036
+| where ServiceName in (
+    "WinDefend",
+    "MpsSvc",
+    "wscsvc",
+    "Sense",
+    "SecurityHealthService",
+    "MsSense",
+    "BITS",
+    "wuauserv"
+  )
+| where ServiceType has "stopped" or ServiceType has "disabled"
+| extend
+    DetectionType = "Security Service Stopped",
+    Risk = "HIGH",
+    Technique = "T1562.001",
+    Tactic = "Defense Evasion"
+| project
+    TimeGenerated,
+    Computer,
+    ServiceName,
+    ServiceType,
+    DetectionType,
+    Risk,
+    Technique,
+    Tactic
+
+| union
+
+// Part 2 — Windows Firewall disabled via registry
+(SecurityEvent
+| where TimeGenerated > ago(1h)
+| where EventID == 4688
+| where CommandLine has_any (
+    "netsh advfirewall set allprofiles state off",
+    "netsh firewall set opmode disable",
+    "Set-NetFirewallProfile -Enabled False"
+  )
+| extend
+    DetectionType = "Firewall Disabled via Command",
+    Risk = "CRITICAL",
+    Technique = "T1562.004",
+    Tactic = "Defense Evasion"
+| project
+    TimeGenerated,
+    Computer,
+    CommandLine,
+    DetectionType,
+    Risk,
+    Technique,
+    Tactic)
+
+| union
+
+// Part 3 — Audit policy cleared or modified
+(SecurityEvent
+| where TimeGenerated > ago(1h)
+| where EventID in (1102, 4719)
+| extend
+    DetectionType = case(
+        EventID == 1102, "Audit Log Cleared",
+        EventID == 4719, "Audit Policy Modified",
+        "Unknown"
+    ),
+    Risk = "CRITICAL",
+    Technique = "T1562.002",
+    Tactic = "Defense Evasion"
+| project
+    TimeGenerated,
+    Computer,
+    EventID,
+    DetectionType,
+    Risk,
+    Technique,
+    Tactic)
+
+| order by Risk asc, TimeGenerated desc
+
+// False positives:
+// - Legitimate AV updates temporarily stopping services
+// - Planned maintenance windows
+// - IT admin firewall changes during deployments
+// Tuning:
+// - Suppress during known maintenance windows
+// - Whitelist known admin accounts for audit policy changes
+// - Correlate with change management tickets
+// - Alert immediately on Event ID 1102 — log clearing is rare legitimately
